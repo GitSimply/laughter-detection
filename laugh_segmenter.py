@@ -117,7 +117,7 @@ def segment_laugh_with_model(model, input_path, threshold=0.5, min_length=0.1,
     else:
         return []
 
-def segment_laughs(input_path, model_path, output_path, threshold=0.5, min_length=0.2, save_to_textgrid=False):
+def segment_laughs(input_path, model_path, output_path, threshold=0.5, min_length=0.2, save_to_textgrid=False, save_to_audio_files=True):
     print(); print('Loading audio file...')
     y,sr = librosa.load(input_path,sr=8000)
     full_res_y, full_res_sr = librosa.load(input_path,sr=44100)
@@ -132,24 +132,25 @@ def segment_laughs(input_path, model_path, output_path, threshold=0.5, min_lengt
     instances = get_laughter_instances(filtered, threshold=threshold, min_length=min_length)
 
     if len(instances) > 0:
+        if not save_to_audio_files:  # If not saving to audio files, save timestamps to a text file
+            with open(os.path.join(output_path, "laughter_timestamps.txt"), 'w') as file:
+                for start, end in instances:
+                    file.write(f"{start} {end}\n")
+            return [{'start': start, 'end': end} for start, end in instances]
 
         wav_paths = []
         maxv = np.iinfo(np.int16).max
 
         if not save_to_textgrid:
-
             for index, instance in enumerate(instances):
                 laughs = cut_laughter_segments([instance],full_res_y,full_res_sr)
-                wav_path = output_path + "/laugh_" + str(index) + ".wav"
+                wav_path = os.path.join(output_path, f"laugh_{index}.wav")
                 wav_paths.append(wav_path)
                 scipy.io.wavfile.write(wav_path, full_res_sr, (laughs * maxv).astype(np.int16))
-
-
-            return(format_outputs(instances, wav_paths))
+            return format_outputs(instances, wav_paths)
 
         else:
-
-            return([{'start': i[0], 'end': i[1]} for i in instances])
-
+            return [{'start': i[0], 'end': i[1]} for i in instances]
     else:
         return []
+
